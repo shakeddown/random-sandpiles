@@ -1,0 +1,39 @@
+"""
+This includes some programs written by Nathan Kaplan and Shaked Koplewitz having to do with Jacobians of random graphs.
+"""
+
+import numpy
+
+# returns a bernoulli random vector with n iid 0-1 entries in Z/p, conditioned
+# on the sum pf the entries being 0.
+# each entry is 1 with probability q, 0 otherwise.
+def zeroSumVect(n,p,q):
+    v = vector(GF(p),[0]*n)
+    v[0]=1 #to avoid always returning the zero vector
+    while (sum(v))!=0: #randomize vector until sum=0
+        for i in range(n):
+            if random()>q:
+                v[i]=0
+            else:
+                v[i]=1
+    return v
+    
+# Calculates the probability that a random n*cn matrix over Z/p, 
+# conditioned on each column summing to zero, has full rank. 
+# trials = number of trials to run
+# n = height of matrix
+# p = size of base ring (Z/pZ)
+# c = proportion of sides (taken as >=1)
+# q = probability of each entry being 1 (later conditioned on the sum of each column).
+
+def fullRankProb(trials,n,p,c,q):
+    m=int(c*n)
+    fullranks = 0
+    for i in range(trials):
+        mat = []
+        for j in range(m):
+            mat.append(zeroSumVect(n,p,q))
+        mat = matrix(mat)
+        if rank(mat)==n-1:
+            fullranks+=1
+    return float(fullranks)/float(trials)

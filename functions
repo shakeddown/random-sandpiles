@@ -1,8 +1,322 @@
 """
 This includes some programs written by Nathan Kaplan and Shaked Koplewitz having to do with Jacobians of random graphs.
 """
-
 import numpy
+from gc import collect
+import sys
+
+# calculates the probability that the sandpile group of a random (undirected) Erdos-Renyi graph is cyclic.
+# trials = number of trials run
+# n = number of vertices
+# p = edge probability (each edge exists independently with probability p).
+def count_cyclic_GNP(trials,n,p):
+    tot = 0
+    not_cyc = 0
+    trial = 0
+    while trial < trials:
+        tot = tot+1
+        g = graphs.RandomGNP(n,p)
+        gm = g.laplacian_matrix()
+        mat = gm.smith_form()[0] #calculate smith normal form
+        md = mat.diagonal()
+        md.reverse()
+        if md[1] == 0: #if we get here, then the graph is disconnected and we try again
+            trial = trial - 1
+        else:
+            md.sort(reverse=True)
+            if md[1] > 1: #|md[1]| is the size of the second largest factor in the group. 
+                            # this is >1 iff group is non cyclic.
+                not_cyc = not_cyc + 1
+    return(N((trials-not_cyc)/trials),tot)
+    
+    
+# calculates the probability that the sandpile group of a random *directed* Erdos-Renyi graph is cyclic.
+# trials = number of trials run
+# n = number of vertices
+# p = edge probability (each edge exists independently with probability p).
+def count_cyclic_diGNP(trials,n,p):
+    tot = 0
+    not_cyc = 0
+    trial = 0
+    while trial < trials:
+        tot = tot+1
+        trial = trial + 1
+        g = digraphs.RandomDirectedGNP(n, p, loops=False) #having loops never affects the sandpile group
+        gm = g.laplacian_matrix()
+        mat = gm.smith_form()[0]
+        md = mat.diagonal()
+        md.reverse()
+        if md[1] == 0:
+            trial = trial - 1
+        else:
+            md.sort(reverse=True)
+            if md[1] > 1:
+                not_cyc = not_cyc + 1
+    return(N((trials-not_cyc)/trials),tot)
+    
+    
+    
+# calculates the average size of the p-part of the sandpile group of a random *directed* Erdos-Renyi graph.
+# trials = number of trials run
+# n = number of vertices
+# q = edge probability (each edge exists independently with probability q).
+# p = prime at which we calculate the size
+def count_pPart_diGNP(trials,n,q,p):
+    tot = 0
+    not_cyc = 0
+    trial = 0
+    ans = 0 #we add p^p-rank each trial
+    while trial < trials:        
+        tot +=1
+        trial += 1 
+        g = digraphs.RandomDirectedGNP(n,q,loops=True)#try with True
+        gm = g.laplacian_matrix()
+        mat = gm.smith_form()[0]
+        md = mat.diagonal()
+        #print "len(md):",len(md)
+        if md[-2]==0: #corank>=2
+            trial = trial - 1
+        else:
+            k=1
+            i = len(md)-2
+            while md[i]%p==0 and i>=0:
+                k*=p
+                i-=1
+            #now k=p^p-rank       
+            ans+=k
+    return(N((ans)/trials),tot)
+    
+# calculates the average *square* size of the p-part of the sandpile group of a random *directed* Erdos-Renyi graph.
+# this is useful for comparing with predictions made by Cohen-Lenstra type hueristics
+# trials = number of trials run
+# n = number of vertices
+# q = edge probability (each edge exists independently with probability q).
+# p = prime at which we calculate the size 
+def count_p2Part_diGNP(trials,n,q,p):
+    tot = 0
+    not_cyc = 0
+    trial = 0
+    ans = 0 #we add p^p-rank each trial
+    while trial < trials:
+        
+        tot +=1
+        trial += 1 
+        g = digraphs.RandomDirectedGNP(n,q,loops=True)#try with True
+        gm = g.laplacian_matrix()
+        mat = gm.smith_form()[0]
+        md = mat.diagonal()
+        #print "len(md):",len(md)
+        if md[-2]==0: #corank>=2
+            trial = trial - 1
+        else:
+            k=1
+            i = len(md)-2
+            while md[i]%p==0 and i>=0:
+                k*=p
+                i-=1
+            #now k=p^p-rank            
+            ans+=(k*k)
+    return(N((ans)/trials),tot)
+    
+    
+
+#calculates the probability that the sandpile group of a random r-regular graph is cyclic.
+# trials = number of trials
+# r = degree
+# n = number of vertices
+def count_cyclic_regular(trials,r,n):
+    tot = 0
+    not_cyc = 0
+    trial = 0
+    while trial < trials:
+        tot = tot+1
+        trial = trial + 1
+        G = graphs.RandomRegular(r,n)
+        
+        gm = G.laplacian_matrix()
+        mat = gm.smith_form()[0]
+        md = mat.diagonal()
+        md.reverse()
+        if md[1] == 0:
+            trial = trial - 1
+        else:
+            md.sort(reverse=True)
+            if md[1] > 1:
+                not_cyc = not_cyc + 1
+    return(N((trials-not_cyc)/trials),tot)
+    
+    
+# calculates the probability that the sandpile group of a random regular graph has nontrivial p-part.
+# trials = number of trials
+# r = degree
+# n = number of vertices
+# p = prime for which we determine the p-part.
+def count_triv_regular(trials,r,n,p):
+    tot = 0
+    not_cyc = 0
+    trial = 0
+    while trial < trials:
+        tot = tot+1
+        trial = trial + 1
+        G = graphs.RandomRegular(r,n)
+        
+        gm = G.laplacian_matrix()
+        mat = gm.smith_form()[0]
+        md = mat.diagonal()
+        md.reverse()
+        if md[1] == 0:
+            trial = trial - 1
+        else:
+            if md[1]%p!=0: # in the smith normal form, the first entry is the largest,
+                            # so if some entry divides by p, the first one does
+                not_cyc += 1
+    return(N((trials-not_cyc)/trials),tot)
+
+# calculates the average size of the sandpile group of a random r-regular graph.
+# (or equivalently, the average number of spanning trees it has).
+# trials = number of trials
+# r = degree
+# n = number of vertices
+def calc_avg_regsize(trials,r,n):
+    tot = 0
+    ans = 0
+    trial = 0
+    while trial < trials:
+        tot = tot+1
+        trial = trial + 1
+        G = graphs.RandomRegular(r,n)
+        
+        gm = G.laplacian_matrix()
+        mat = gm.smith_form()[0]
+        md = mat.diagonal()
+        md.reverse()
+        if md[1] == 0:
+            trial = trial - 1
+        else:
+            next = 1
+            for ent in md:
+                if ent>0:
+                    next*=ent
+            ans+=next
+    return(N((ans)/trials),tot)
+    
+    
+# calculates the probability that a random Erdos-Renyi bipartite graph has
+# cyclic sandpile group
+# trials = number of trials
+# n1,n2 = number of vertices on each side
+# p = edge probability (each edge exists independently with probability p)
+def count_cyclic_bipartite(trials,n1,n2,p):
+    tot = 0
+    not_cyc = 0
+    trial = 0
+    while trial < trials:
+        tot = tot+1
+        trial = trial + 1
+        g = graphs.RandomBipartite(n1,n2,p)
+        gm = g.laplacian_matrix()
+        mat = gm.smith_form()[0]
+        md = mat.diagonal()
+        md.reverse()
+        if md[1] == 0:
+            trial = trial - 1
+        else:
+            md.sort(reverse=True)
+            if md[1] > 1:
+                not_cyc = not_cyc + 1
+    return(N((trials-not_cyc)/trials),tot)
+    
+
+# calculates the average size of the p-torsion group of the sandpile group of a random bipartite graph.
+# trials = number of trials
+# n1,n2 = sizes of each side of the graph
+# p= prime at which we calculate the torsion part
+# q = edge probability (each edge exists independently with probability q)
+def ptors_rank_bip (trials,n1,n2,q,p):
+    tot = 0
+    trial = 0
+    countersum = 0
+    ranks=0
+    while trial < trials:
+        tot = tot+1
+        trial = trial + 1
+        G = graphs.RandomBipartite(n1,n2,q)
+        S = Sandpile(G,(0,0))
+        md = S.invariant_factors()
+        md.reverse()
+        if md[0] == 0:
+            trial = trial - 1
+        else:
+            md.sort(reverse=True)
+            counter = 0
+            k = 0
+            while k == 0:
+                if md[counter]%p == 0:
+                    counter = counter + 1
+                else:
+                    k = 1
+                    ranks += p^counter
+                    #print md, counter
+    ranks /=  trials                   
+    return(ranks,tot)
+    
+    
+# calculates the probability that a random bipartite graph has trivial p-part    
+# trials = number of trials
+# n1,n2 = sizes of each side of the graph
+# p= prime at which we calculate the torsion part
+# q = edge probability (each edge exists independently with probability q)
+def triv_count_bip(trials,n1,n2,q,p):
+    tot = 0
+    trial = 0
+    count = 0
+    while trial < trials:
+        if trial%1000==0:
+            print count,trial
+        tot = tot+1
+        trial = trial + 1
+        g = graphs.RandomBipartite(n1,n2,q)
+        gm = g.kirchhoff_matrix()     
+        gm = gm.matrix_from_columns(range(1,gm.ncols())).matrix_from_rows(range(1,gm.nrows()))    
+        mat = gm.smith_form()[0]       
+        md = sorted(mat.diagonal())
+        if not g.is_connected(): #disconnected
+            trial = trial - 1
+        else:
+            if (md[-1]%p!=0):
+                count+=1
+            if md[-2] == 0:
+                print 'ERROR!!'  #should never be here   
+    return(count,trials,tot)
+    
+    
+# calculates the average p-rank of the sandpile group of a random bipartite graph
+# trials = number of trials
+# n1,n2 = sizes of each side of the graph
+# p= prime at which we calculate the rank
+# q = edge probability (each edge exists independently with probability q)
+def ptors_dimcount_bip_new(trials,n1,n2,q,p):
+    tot = 0
+    trial = 0
+    bigsum = 0
+    while trial < trials:
+        if trial%100==0:
+            print trial #this program takes a while, so these are useful
+        collect()
+        tot = tot+1
+        trial = trial + 1
+        G = graphs.RandomBipartite(n1,n2,q)
+        
+        A = matrix(GF(p),G.kirchhoff_matrix())
+        A = A.matrix_from_columns(range(1,A.ncols())).matrix_from_rows(range(1,A.nrows()))
+        rnk = n1+n2-1-A.rank()
+        
+        if G.is_connected():
+            bigsum+=rnk
+        else:
+            trial = trial - 1
+            
+    return(bigsum,trials,tot)
 
 # returns a bernoulli random vector with n iid 0-1 entries in Z/p, conditioned
 # on the sum pf the entries being 0.
@@ -19,7 +333,7 @@ def zeroSumVect(n,p,q):
     return v
     
 # Calculates the probability that a random n*cn matrix over Z/p, 
-# conditioned on each column summing to zero, has full rank. 
+# conditioned on each column summing to zero, has full rank.
 # trials = number of trials to run
 # n = height of matrix
 # p = size of base ring (Z/pZ)
